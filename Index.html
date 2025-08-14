@@ -1,1 +1,915 @@
-doc
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>American Airlines Weather Operations Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f1419 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #cc0000;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .aa-logo {
+            width: 30px;
+            height: 30px;
+            background: #cc0000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 300;
+            color: #ffffff;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(45deg, #cc0000, #ff3333);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: linear-gradient(45deg, #aa0000, #cc0000);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(204, 0, 0, 0.3);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: #cccccc;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+        }
+
+        .status-dot.success {
+            background: #00ff00;
+        }
+
+        .status-dot.error {
+            background: #ff0000;
+        }
+
+        .status-dot.warning {
+            background: #ffaa00;
+        }
+
+        .main-content {
+            padding: 15px;
+            height: calc(100vh - 60px);
+            overflow: hidden;
+        }
+
+        .airports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            height: 100%;
+            max-height: calc(100vh - 75px);
+            overflow: hidden;
+        }
+
+        .airport-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: visible;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .airport-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(204, 0, 0, 0.5);
+        }
+
+        .airport-card.kdfw-highlight {
+            background: linear-gradient(135deg, rgba(204, 0, 0, 0.15), rgba(255, 255, 255, 0.05));
+            border: 2px solid #cc0000;
+            box-shadow: 0 0 20px rgba(204, 0, 0, 0.3);
+        }
+
+        .airport-card.kdfw-highlight .airport-code {
+            color: #ff3333;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .airport-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .airport-info {
+            flex: 1;
+        }
+
+        .airport-code {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 2px;
+        }
+
+        .airport-name {
+            font-size: 12px;
+            color: #cccccc;
+            line-height: 1.2;
+        }
+
+        .hub-badge {
+            background: linear-gradient(45deg, #cc0000, #ff3333);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .weather-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .temperature {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .weather-icon {
+            font-size: 32px;
+            opacity: 0.8;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4px;
+            margin: 8px 0;
+            font-size: 11px;
+        }
+
+        .weather-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #cccccc;
+        }
+
+        .weather-item i {
+            width: 12px;
+            text-align: center;
+        }
+
+        .flight-category {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .flight-category.vfr {
+            background: #00ff00;
+        }
+
+        .flight-category.mvfr {
+            background: #0066ff;
+        }
+
+        .flight-category.ifr {
+            background: #ff6600;
+        }
+
+        .flight-category.lifr {
+            background: #ff0000;
+        }
+
+        .metar-preview {
+            margin-top: auto;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 8px;
+            color: #999999;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+            font-size: 16px;
+            color: #cccccc;
+        }
+
+        .error-message {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px;
+            color: #ff6666;
+            text-align: center;
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translate(-50%, -20px);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .airports-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 12px;
+            }
+            
+            .airport-card {
+                padding: 12px;
+                min-height: 140px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 10px 15px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .airports-grid {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo-section">
+            <div class="aa-logo">AA</div>
+            <h1>Weather Operations Dashboard</h1>
+        </div>
+        <div class="controls">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Live Data</span>
+            </div>
+            <div class="last-update" id="lastUpdate">Loading...</div>
+            <button class="refresh-btn" id="refreshBtn">
+                <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                Refresh
+            </button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="airports-grid" id="airportsGrid">
+            <div class="loading">
+                <i class="fas fa-plane spinning"></i>
+                &nbsp;&nbsp;Loading weather data...
+            </div>
+        </div>
+    </main>
+
+    <script>
+        class WeatherDashboard {
+            constructor() {
+                // American Airlines hubs and destinations
+                this.airports = {
+                    hubs: ['KCLT', 'KORD', 'KDFW', 'KLAX', 'KMIA', 'KJFK', 'KLGA', 'KPHL', 'KPHX', 'KDCA'],
+                    international: ['RKSI', 'PHOG', 'PHNL', 'RJAA', 'RJTT', 'LIRF', 'EGLL', 'EHAM', 'EDDF', 'LEMD', 'LEBL', 'LIPZ', 'LFPG', 'SBGR', 'EIDW']
+                };
+
+                this.airportNames = {
+                    'KCLT': 'Charlotte Douglas Intl',
+                    'KORD': 'Chicago O\'Hare Intl',
+                    'KDFW': 'Dallas/Fort Worth Intl',
+                    'KLAX': 'Los Angeles Intl',
+                    'KMIA': 'Miami Intl',
+                    'KJFK': 'John F Kennedy Intl',
+                    'KLGA': 'LaGuardia',
+                    'KPHL': 'Philadelphia Intl',
+                    'KPHX': 'Phoenix Sky Harbor Intl',
+                    'KDCA': 'Ronald Reagan Washington',
+                    'RKSI': 'Seoul Incheon Intl',
+                    'PHOG': 'Guam Antonio B Won Pat',
+                    'PHNL': 'Honolulu Daniel K Inouye',
+                    'RJAA': 'Tokyo Narita Intl',
+                    'RJTT': 'Tokyo Haneda',
+                    'LIRF': 'Rome Fiumicino',
+                    'EGLL': 'London Heathrow',
+                    'EHAM': 'Amsterdam Schiphol',
+                    'EDDF': 'Frankfurt am Main',
+                    'LEMD': 'Madrid Barajas',
+                    'LEBL': 'Barcelona El Prat',
+                    'LIPZ': 'Venice Marco Polo',
+                    'LFPG': 'Paris Charles de Gaulle',
+                    'SBGR': 'São Paulo Guarulhos',
+                    'EIDW': 'Dublin'
+                };
+
+                // Common IATA codes for display
+                this.iataCodes = {
+                    'KCLT': 'CLT',
+                    'KORD': 'ORD',
+                    'KDFW': 'DFW',
+                    'KLAX': 'LAX',
+                    'KMIA': 'MIA',
+                    'KJFK': 'JFK',
+                    'KLGA': 'LGA',
+                    'KPHL': 'PHL',
+                    'KPHX': 'PHX',
+                    'KDCA': 'DCA',
+                    'RKSI': 'ICN',
+                    'PHOG': 'GUM',
+                    'PHNL': 'HNL',
+                    'RJAA': 'NRT',
+                    'RJTT': 'HND',
+                    'LIRF': 'FCO',
+                    'EGLL': 'LHR',
+                    'EHAM': 'AMS',
+                    'EDDF': 'FRA',
+                    'LEMD': 'MAD',
+                    'LEBL': 'BCN',
+                    'LIPZ': 'VCE',
+                    'LFPG': 'CDG',
+                    'SBGR': 'GRU',
+                    'EIDW': 'DUB'
+                };
+
+                // Time zone offsets from UTC (August - Daylight Saving Time)
+                this.timeZones = {
+                    'KCLT': -4, 'KORD': -5, 'KDFW': -5, 'KLAX': -7, 'KMIA': -4,
+                    'KJFK': -4, 'KLGA': -4, 'KPHL': -4, 'KPHX': -7, 'KDCA': -4,
+                    'KBOS': -4, 'KSFO': -7, 'KSEA': -7, 'KLAS': -7, 'KDEN': -6,
+                    'KDTW': -4, 'KMSP': -5, 'KATL': -4, 'MMUN': -5,
+                    'RKSI': 9, 'PHOG': 10, 'PHNL': -10, 'RJAA': 9, 'RJTT': 9,
+                    'LIRF': 2, 'EGLL': 1, 'EHAM': 2, 'EDDF': 2, 'LEMD': 2,
+                    'LEBL': 2, 'LIPZ': 2, 'LFPG': 2, 'SBGR': -3, 'EIDW': 1
+                };
+
+                this.refreshInterval = null;
+                this.lastUpdateTime = null;
+                this.isLoading = false;
+                this.dataSource = 'api'; // 'api' or 'fallback'
+
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadWeatherData();
+                this.startAutoRefresh();
+            }
+
+            setupEventListeners() {
+                const refreshBtn = document.getElementById('refreshBtn');
+                refreshBtn.addEventListener('click', () => {
+                    if (!this.isLoading) {
+                        this.loadWeatherData();
+                    }
+                });
+            }
+
+            startAutoRefresh() {
+                // Refresh every 5 minutes
+                this.refreshInterval = setInterval(() => {
+                    this.loadWeatherData();
+                }, 5 * 60 * 1000);
+            }
+
+            async loadWeatherData() {
+                this.setLoading(true);
+                
+                try {
+                    const allAirports = [...this.airports.hubs, ...this.airports.international];
+                    const airportCodes = allAirports.join(',');
+                    
+                    // Try multiple CORS proxy options
+                    const proxies = [
+                        'https://api.allorigins.win/raw?url=',
+                        'https://corsproxy.io/?'
+                    ];
+                    
+                    let data = null;
+                    let proxySuccess = false;
+                    
+                    // Try each proxy in sequence
+                    for (const proxyUrl of proxies) {
+                        try {
+                            const apiUrl = `https://aviationweather.gov/api/data/metar?ids=${airportCodes}&format=json`;
+                            const fullUrl = proxyUrl + encodeURIComponent(apiUrl);
+                            
+                            const response = await fetch(fullUrl, {
+                                headers: proxyUrl.includes('cors-anywhere') ? {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                } : {}
+                            });
+
+                            if (response.ok) {
+                                data = await response.json();
+                                proxySuccess = true;
+                                console.log(`Successfully fetched data using proxy: ${proxyUrl}`);
+                                break;
+                            }
+                        } catch (proxyError) {
+                            console.warn(`Proxy ${proxyUrl} failed:`, proxyError);
+                        }
+                    }
+                    
+                    if (proxySuccess && data) {
+                        // Limit console logging for production (reduce memory usage)
+                        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                            console.log('Raw API response:', data);
+                            console.log(`Successfully loaded REAL weather data for ${data.length} airports from Aviation Weather API`);
+                        }
+                        this.processWeatherData(data);
+                        this.dataSource = 'api';
+                        this.updateStatus('LIVE - Real Weather Data', 'success');
+                    } else {
+                        // All proxies failed - show error, no fake data
+                        console.error('Unable to connect to Aviation Weather API');
+                        this.showApiError();
+                        this.dataSource = 'error';
+                        this.updateStatus('API Connection Failed', 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('API request failed:', error);
+                    this.showApiError();
+                    this.dataSource = 'error';
+                    this.updateStatus('API Connection Failed', 'error');
+                    
+                    // Automatic retry after 30 seconds for resilience
+                    setTimeout(() => {
+                        console.log('Retrying API connection...');
+                        this.loadWeatherData();
+                    }, 30000);
+                }
+                
+                this.setLoading(false);
+                this.updateLastUpdateTime();
+            }
+
+            showApiError() {
+                const grid = document.getElementById('airportsGrid');
+                grid.innerHTML = `
+                    <div class="error-message" style="grid-column: 1 / -1;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                        <h2 style="margin-bottom: 15px;">Unable to Connect to Weather API</h2>
+                        <p>Real-time weather data is temporarily unavailable.</p>
+                        <p style="margin-top: 20px; font-size: 14px;">
+                            The Aviation Weather API is not accessible through available CORS proxies.
+                        </p>
+                        <p style="margin-top: 10px; font-size: 12px; opacity: 0.7;">
+                            For production deployment, this dashboard requires a backend server to proxy API requests,<br>
+                            or deployment to a server with proper CORS configuration.
+                        </p>
+                        <button class="refresh-btn" onclick="location.reload()" style="margin-top: 20px;">
+                            <i class="fas fa-sync-alt"></i> Try Again
+                        </button>
+                    </div>
+                `;
+            }
+
+            processWeatherData(data) {
+                const grid = document.getElementById('airportsGrid');
+                
+                // Clear old cards properly to prevent memory leaks
+                while (grid.firstChild) {
+                    grid.removeChild(grid.firstChild);
+                }
+
+                const allAirports = [...this.airports.hubs, ...this.airports.international];
+                
+                // Create document fragment for better performance
+                const fragment = document.createDocumentFragment();
+                
+                allAirports.forEach(airportCode => {
+                    const metarData = data.find(item => item.icaoId === airportCode);
+                    const card = this.createAirportCard(airportCode, metarData);
+                    fragment.appendChild(card);
+                });
+                
+                // Single DOM update for better performance
+                grid.appendChild(fragment);
+            }
+
+            createAirportCard(airportCode, metarData) {
+                const card = document.createElement('div');
+                // Special highlighting for KDFW
+                card.className = airportCode === 'KDFW' ? 'airport-card kdfw-highlight' : 'airport-card';
+                
+                const isHub = this.airports.hubs.includes(airportCode);
+                const airportName = metarData?.name || this.airportNames[airportCode] || airportCode;
+                const iataCode = this.iataCodes[airportCode] || airportCode.substring(1);
+                
+                if (!metarData) {
+                    card.innerHTML = `
+                        <div class="airport-header" style="margin-bottom: 4px;">
+                            <div class="airport-info">
+                                <div class="airport-code" style="display: flex; align-items: baseline; gap: 8px;">
+                                    <span>${airportCode}</span>
+                                    <span style="font-size: 14px; color: #aaa;">(${iataCode})</span>
+                                </div>
+                                <div class="airport-name" style="font-size: 10px; opacity: 0.8;">${airportName}</div>
+                            </div>
+                            ${isHub ? '<div class="hub-badge">Hub</div>' : ''}
+                        </div>
+                        <div class="temperature" style="font-size: 24px; font-weight: bold; margin: 4px 0;">--°F</div>
+                        <div class="weather-details" style="font-size: 9px;">
+                            <div class="weather-item">
+                                <i class="fas fa-eye" style="font-size: 8px;"></i>
+                                <span>No data</span>
+                            </div>
+                            <div class="weather-item">
+                                <i class="fas fa-wind" style="font-size: 8px;"></i>
+                                <span>--</span>
+                            </div>
+                        </div>
+                        <div class="metar-preview" style="font-size: 8px; margin-top: 4px;">No METAR data available</div>
+                    `;
+                    return card;
+                }
+
+                // Use actual API data fields
+                const tempF = metarData.temp ? Math.round((metarData.temp * 9/5) + 32) : '--';
+                const dewpF = metarData.dewp ? Math.round((metarData.dewp * 9/5) + 32) : '--';
+                const windDir = metarData.wdir || 0;
+                const windSpeed = metarData.wspd || 0;
+                const windGust = metarData.wgst || null;
+                const windString = windSpeed === 0 ? 'Calm' : 
+                    windGust ? `${windDir}° @ ${windSpeed}G${windGust}kt` : `${windDir}° @ ${windSpeed}kt`;
+                
+                // Determine wind color - deep orange for 25+ knots (handle null values)
+                const windColor = (windSpeed >= 25 || (windGust && windGust >= 25)) ? '#ff6600' : '#98d8c8';
+                
+                const visibility = metarData.visib === '10+' ? '10+ mi' : 
+                    metarData.visib ? `${metarData.visib} mi` : '--';
+                
+                const altimeter = metarData.altim ? (metarData.altim / 33.864).toFixed(2) : '--';
+                const clouds = this.formatCloudLayers(metarData.clouds);
+                const flightCategory = metarData.flightCategory || 'Unknown';
+                
+                // Calculate CURRENT local time (not observation time)
+                const now = new Date();
+                const utcHours = now.getUTCHours();
+                const utcMinutes = now.getUTCMinutes();
+                const timeOffset = this.timeZones[airportCode] || 0;
+                const localHours = (utcHours + timeOffset + 24) % 24;
+                const localTime = `${String(localHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}`;
+                const utcTimeStr = `${String(utcHours).padStart(2, '0')}:${String(utcMinutes).padStart(2, '0')}Z`;
+                const offsetStr = timeOffset >= 0 ? `+${timeOffset}` : `${timeOffset}`;
+
+                card.innerHTML = `
+                    <div class="flight-category ${flightCategory.toLowerCase()}"></div>
+                    <div class="airport-header" style="margin-bottom: 4px;">
+                        <div class="airport-info">
+                            <div class="airport-code" style="display: flex; align-items: baseline; gap: 8px;">
+                                <span>${airportCode}</span>
+                                <span style="font-size: 14px; color: #aaa;">(${iataCode})</span>
+                            </div>
+                            <div class="airport-name" style="font-size: 10px; opacity: 0.8;">${airportName}</div>
+                        </div>
+                        ${isHub ? '<div class="hub-badge">Hub</div>' : ''}
+                    </div>
+                    <div class="temperature" style="font-size: 24px; font-weight: bold; margin: 4px 0; color: ${tempF > 90 ? '#ff6b6b' : tempF < 32 ? '#74c0fc' : '#fff'};">${tempF}°F</div>
+                    <div class="weather-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; font-size: 9px; margin: 4px 0;">
+                        <div class="weather-item" style="display: flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-wind" style="color: ${windColor}; font-size: 8px;"></i>
+                            <span style="color: ${windSpeed >= 25 || (windGust && windGust >= 25) ? '#ff6600' : 'inherit'}; font-weight: ${windSpeed >= 25 || (windGust && windGust >= 25) ? 'bold' : 'normal'};">${windString}</span>
+                        </div>
+                        <div class="weather-item" style="display: flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-eye" style="color: #ffd700; font-size: 8px;"></i>
+                            <span>${visibility}</span>
+                        </div>
+                        <div class="weather-item" style="display: flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-tint" style="color: #87ceeb; font-size: 8px;"></i>
+                            <span>Dew ${dewpF}°</span>
+                        </div>
+                        <div class="weather-item" style="display: flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-tachometer-alt" style="color: #ff6b6b; font-size: 8px;"></i>
+                            <span>${altimeter}"</span>
+                        </div>
+                        <div class="weather-item" style="display: flex; align-items: center; gap: 3px;">
+                            <i class="fas fa-cloud" style="color: #b19cd9; font-size: 8px;"></i>
+                            <span style="font-size: 8px;">${clouds}</span>
+                        </div>
+                        <div class="weather-item" style="display: flex; align-items: center; gap: 3px;">
+                            ${flightCategory && flightCategory !== 'Unknown' ? 
+                            `<span style="padding: 1px 4px; background: ${flightCategory === 'VFR' ? '#00ff00' : flightCategory === 'MVFR' ? '#0066ff' : flightCategory === 'IFR' ? '#ff6600' : '#ff0000'}; color: white; border-radius: 3px; font-weight: bold;">${flightCategory}</span>` :
+                            `<span style="padding: 1px 4px; background: #555; color: #999; border-radius: 3px; font-size: 7px;">No FC</span>`}
+                        </div>
+                        <div class="weather-item" style="grid-column: 1 / -1; display: flex; align-items: center; gap: 3px; margin-top: 2px;">
+                            <i class="fas fa-clock" style="color: #aaa; font-size: 8px;"></i>
+                            <span>Local: ${localTime} (UTC${offsetStr}) | UTC: ${utcTimeStr}</span>
+                        </div>
+                        ${metarData.wxString ? `
+                        <div class="weather-item" style="grid-column: 1 / -1; color: #ffaa00; margin-top: 2px;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 8px;"></i>
+                            <span style="font-weight: bold;">${metarData.wxString}</span>
+                        </div>` : ''}
+                    </div>
+                    <div class="metar-preview" style="font-size: 8px; margin-top: 4px;" title="${metarData.rawOb}">${metarData.rawOb}</div>
+                `;
+
+                return card;
+            }
+
+            extractTemperature(rawOb) {
+                const tempMatch = rawOb.match(/M?(\d{2})\/M?\d{2}/);
+                if (tempMatch) {
+                    const temp = parseInt(tempMatch[1]);
+                    const isCelsius = true; // METAR always in Celsius
+                    const fahrenheit = Math.round((temp * 9/5) + 32);
+                    return rawOb.includes('M' + tempMatch[1]) ? 
+                        `-${fahrenheit}°F` : `${fahrenheit}°F`;
+                }
+                return '--°';
+            }
+
+            extractWind(rawOb) {
+                const windMatch = rawOb.match(/(\d{3})(\d{2,3})(?:G(\d{2,3}))?KT/);
+                if (windMatch) {
+                    const direction = windMatch[1];
+                    const speed = windMatch[2];
+                    const gust = windMatch[3];
+                    return gust ? 
+                        `${direction}° ${speed}G${gust}kt` : 
+                        `${direction}° ${speed}kt`;
+                }
+                
+                if (rawOb.includes('00000KT')) {
+                    return 'Calm';
+                }
+                
+                return '--';
+            }
+
+            extractVisibility(rawOb) {
+                const visMatch = rawOb.match(/\s(\d{4})\s/);
+                if (visMatch) {
+                    const meters = parseInt(visMatch[1]);
+                    const miles = Math.round(meters * 0.000621371 * 10) / 10;
+                    return `${miles}mi`;
+                }
+                
+                const fractionalMatch = rawOb.match(/\s(\d+\/\d+)SM/);
+                if (fractionalMatch) {
+                    return fractionalMatch[1] + 'mi';
+                }
+                
+                const decimalMatch = rawOb.match(/\s(\d+(?:\.\d+)?)SM/);
+                if (decimalMatch) {
+                    return decimalMatch[1] + 'mi';
+                }
+                
+                return '--';
+            }
+
+            getWeatherIcon(rawOb) {
+                if (rawOb.includes('RA')) return 'fas fa-cloud-rain';
+                if (rawOb.includes('SN')) return 'fas fa-snowflake';
+                if (rawOb.includes('TS')) return 'fas fa-bolt';
+                if (rawOb.includes('FG')) return 'fas fa-smog';
+                if (rawOb.includes('OVC') || rawOb.includes('BKN')) return 'fas fa-cloud';
+                if (rawOb.includes('SCT') || rawOb.includes('FEW')) return 'fas fa-cloud-sun';
+                if (rawOb.includes('CLR') || rawOb.includes('SKC')) return 'fas fa-sun';
+                return 'fas fa-cloud';
+            }
+
+            getWeatherIconFromData(metarData) {
+                // Check for weather phenomena first
+                if (metarData.wxString) {
+                    const wx = metarData.wxString.toUpperCase();
+                    if (wx.includes('TS')) return 'fas fa-bolt';
+                    if (wx.includes('RA') || wx.includes('DZ')) return 'fas fa-cloud-rain';
+                    if (wx.includes('SN')) return 'fas fa-snowflake';
+                    if (wx.includes('FG') || wx.includes('BR')) return 'fas fa-smog';
+                }
+                
+                // Check raw METAR for additional conditions
+                const rawOb = metarData.rawOb || '';
+                if (rawOb.includes('TS')) return 'fas fa-bolt';
+                if (rawOb.includes('RA') || rawOb.includes('DZ')) return 'fas fa-cloud-rain';
+                if (rawOb.includes('SN')) return 'fas fa-snowflake';
+                if (rawOb.includes('FG') || rawOb.includes('BR')) return 'fas fa-smog';
+                
+                // Determine icon based on cloud coverage
+                if (metarData.clouds && metarData.clouds.length > 0) {
+                    const lowestCloud = metarData.clouds[0];
+                    switch(lowestCloud.cover) {
+                        case 'OVC':
+                            return 'fas fa-cloud';
+                        case 'BKN':
+                            return 'fas fa-cloud';
+                        case 'SCT':
+                            return 'fas fa-cloud-sun';
+                        case 'FEW':
+                            return 'fas fa-cloud-sun';
+                        default:
+                            return 'fas fa-sun';
+                    }
+                }
+                
+                // Clear skies
+                if (rawOb.includes('CLR') || rawOb.includes('SKC') || rawOb.includes('CAVOK')) {
+                    return 'fas fa-sun';
+                }
+                
+                return 'fas fa-cloud-sun';
+            }
+
+            formatCloudLayers(clouds) {
+                if (!clouds || clouds.length === 0) {
+                    return 'Clear';
+                }
+                
+                // Format the most significant cloud layer
+                const primary = clouds[0];
+                const height = primary.base ? `${primary.base}ft` : '';
+                
+                switch(primary.cover) {
+                    case 'FEW':
+                        return `Few ${height}`;
+                    case 'SCT':
+                        return `Scattered ${height}`;
+                    case 'BKN':
+                        return `Broken ${height}`;
+                    case 'OVC':
+                        return `Overcast ${height}`;
+                    default:
+                        return primary.cover + ' ' + height;
+                }
+            }
+
+            getFlightCategory(category) {
+                if (!category) return 'Unknown';
+                return category.toUpperCase();
+            }
+
+            showError(message) {
+                const grid = document.getElementById('airportsGrid');
+                grid.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Weather Data Unavailable</h3>
+                        <p>${message}</p>
+                        <p style="margin-top: 10px; font-size: 12px; opacity: 0.8;">
+                            This may be due to API limitations or network connectivity issues. 
+                            The CORS proxy service may require activation - visit 
+                            <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" style="color: #ff6666;">
+                                cors-anywhere.herokuapp.com/corsdemo
+                            </a> 
+                            to request temporary access.
+                        </p>
+                    </div>
+                `;
+            }
+
+            setLoading(loading) {
+                this.isLoading = loading;
+                const refreshBtn = document.getElementById('refreshBtn');
+                const refreshIcon = document.getElementById('refreshIcon');
+                
+                refreshBtn.disabled = loading;
+                
+                if (loading) {
+                    refreshIcon.classList.add('spinning');
+                } else {
+                    refreshIcon.classList.remove('spinning');
+                }
+            }
+
+            updateStatus(text, type) {
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                
+                statusDot.className = `status-dot ${type}`;
+                statusText.textContent = text;
+            }
+
+            updateLastUpdateTime() {
+                this.lastUpdateTime = new Date();
+                const lastUpdateEl = document.getElementById('lastUpdate');
+                lastUpdateEl.textContent = `Last updated: ${this.lastUpdateTime.toLocaleTimeString()}`;
+            }
+        }
+
+        // Initialize the dashboard when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new WeatherDashboard();
+        });
+    </script>
+</body>
+</html>
